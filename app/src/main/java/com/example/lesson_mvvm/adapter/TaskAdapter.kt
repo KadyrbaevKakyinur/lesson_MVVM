@@ -2,53 +2,62 @@ package com.example.lesson_mvvm.adapter
 
 
 import android.annotation.SuppressLint
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
 import com.example.lesson_mvvm.databinding.ItemTaskBinding
 import com.example.lesson_mvvm.model.Task
-import com.example.lesson_mvvm.viewModel.TaskViewModel
 
 
-class TaskAdapter(private val viewModel: TaskViewModel) :
-    RecyclerView.Adapter<TaskAdapter.TaskViewHolder>() {
+class TaskAdapter(
+    private val onLongClickListenerTask: (Task) -> Unit,
+    private val isTaskChecked: (Task, Boolean) -> Unit,
+    private val onClickTask: (Task) -> Unit
+) : RecyclerView.Adapter<TaskAdapter.TaskViewHolder>() {
+    private var list = mutableListOf<Task>()
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TaskViewHolder {
-        val binding = ItemTaskBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return TaskViewHolder(binding)
+    @SuppressLint("NotifyDataSetChanged")
+    fun setTask(list: MutableList<Task>) {
+        this.list = list
+        notifyDataSetChanged()
     }
 
-    override fun onBindViewHolder(holder: TaskViewHolder, position: Int) {
-        val task = viewModel.taskList[position]
-        holder.bind(task)
+    @SuppressLint("NotifyDataSetChanged")
+    fun deleteTask(task: Task) {
+        list.remove(task)
+        notifyDataSetChanged()
     }
 
-    override fun getItemCount(): Int {
-        return viewModel.taskList.size
-    }
-
-    inner class TaskViewHolder(private val binding: ItemTaskBinding) :
-        RecyclerView.ViewHolder(binding.root) {
-        fun bind(task: Task) {
-            binding.taskTitle.text = task.title
-            binding.taskCheckbox.isChecked = task.isCompleted
-            binding.taskCheckbox.setOnCheckedChangeListener { _, isChecked ->
-                task.isCompleted = isChecked
-            }
-            binding.root.setOnLongClickListener {
-                showDeleteTaskDialog(task)
+    inner class TaskViewHolder(private val binding: ItemTaskBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun onBind(task: Task) = with(binding) {
+            title.text = task.title
+            description.text = task.description
+            checkBox.isChecked = task.checkBox
+            itemView.setOnLongClickListener {
+                onLongClickListenerTask(task)
                 true
             }
-        }
-
-        @SuppressLint("NotifyDataSetChanged")
-        private fun showDeleteTaskDialog(task: Task) {
-            val builder = AlertDialog.Builder(binding.root.context)
-            builder.setMessage("Удалить задачу?").setPositiveButton("Да") { _, _ ->
-                viewModel.removeTask(task)
-                notifyDataSetChanged()
-            }.setNegativeButton("Нет", null).show()
+            checkBox.setOnCheckedChangeListener { _, isChecked ->
+                isTaskChecked(task, isChecked)
+                Log.e("ololo", "onBind:$task \t $isChecked ")
+            }
+            itemView.setOnClickListener {
+                onClickTask(task)
+            }
         }
     }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TaskViewHolder =
+        TaskViewHolder(
+            ItemTaskBinding.inflate(
+                LayoutInflater.from(parent.context), parent, false
+            )
+        )
+
+    override fun onBindViewHolder(holder: TaskViewHolder, position: Int) {
+        holder.onBind(list[position])
+    }
+
+    override fun getItemCount() = list.size
 }
